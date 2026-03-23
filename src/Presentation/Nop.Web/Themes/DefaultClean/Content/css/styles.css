@@ -1874,8 +1874,9 @@ label, label + * {
 .item-box {
   position: relative;
   width: 100%;
-  float: left;
-  margin: 0 0 80px;
+  float: none;
+  display: block;
+  margin: 0 0 30px;
   text-align: left;
 }
 
@@ -1943,10 +1944,10 @@ label, label + * {
   margin: 0 0 15px;
 }
 
-.item-box .product-rating-box {
-  display: inline-block;
-  margin: 0 0 10px;
-}
+  .item-box .product-rating-box {
+    .product-grid display: inline-block;
+    margin: 0 0 10px;
+  }
 
 .item-box .rating {
   background: url('../images/rating1.png') repeat-x;
@@ -2105,6 +2106,33 @@ label, label + * {
 .product-grid,
 .product-list {
   margin: 0 0 50px;
+}
+
+@media (max-width: 768px) {
+  .product-grid .item-grid,
+  .new-products-page .item-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .product-grid .item-box,
+  .new-products-page .item-box {
+    width: 100% !important;
+    float: none !important;
+    display: block !important;
+    margin: 0 0 25px !important;
+  }
+
+  .product-grid .picture,
+  .new-products-page .picture {
+    display: block !important;
+  }
+
+  .product-grid .details,
+  .new-products-page .details {
+    display: block !important;
+  }
 }
 
 .product-grid .title {
