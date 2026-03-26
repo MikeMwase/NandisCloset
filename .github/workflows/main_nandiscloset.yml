@@ -26,15 +26,20 @@ jobs:
         run: |
           $appData = "${{env.DOTNET_ROOT}}/myapp/App_Data"
           New-Item -ItemType Directory -Force -Path $appData
+          New-Item -ItemType Directory -Force -Path "$appData/Installation"
           $json = @{
             DataProvider = "sqlserver"
             ConnectionString = "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
             SQLCommandTimeout = ""
           } | ConvertTo-Json -Compress
           Set-Content -Path "$appData/dataSettings.json" -Value $json -Encoding UTF8
+          Set-Content -Path "$appData/Installation/installed.htm" -Value "Installed" -Encoding UTF8
           Write-Host "=== dataSettings.json contents ==="
           Get-Content "$appData/dataSettings.json"
           Write-Host "=================================="
+          Write-Host "=== installed.htm contents ==="
+          Get-Content "$appData/Installation/installed.htm"
+          Write-Host "=============================="
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
@@ -65,24 +70,31 @@ jobs:
           app-name: 'NandisCloset'
           slot-name: 'Production'
           package: .
-      - name: Write dataSettings.json via Kudu API
+      - name: Write NopCommerce config files via Kudu API
         shell: pwsh
         run: |
-          $kuduUrl = "https://nandiscloset-exfcggcvhrewexcf.scm.southafricanorth-01.azurewebsites.net/api/vfs/site/wwwroot/App_Data/dataSettings.json"
-          $json = '{"DataProvider":"sqlserver","ConnectionString":"${{ secrets.AZURE_SQL_CONNECTION_STRING }}","SQLCommandTimeout":""}'
           $token = az account get-access-token --resource "https://management.azure.com" --query accessToken -o tsv
           $headers = @{
             "Authorization" = "Bearer $token"
             "Content-Type"  = "application/octet-stream"
             "If-Match"      = "*"
           }
-          # Ensure App_Data folder exists
-          try {
-            Invoke-RestMethod -Uri "https://nandiscloset-exfcggcvhrewexcf.scm.southafricanorth-01.azurewebsites.net/api/vfs/site/wwwroot/App_Data/" -Method Put -Headers $headers
-          } catch {
-            Write-Host "App_Data folder may already exist, continuing..."
-          }
+          $baseUrl = "https://nandiscloset-exfcggcvhrewexcf.scm.southafricanorth-01.azurewebsites.net/api/vfs/site/wwwroot/App_Data"
+
+          # Create folders
+          try { Invoke-RestMethod -Uri "$baseUrl/" -Method Put -Headers $headers } catch {}
+          try { Invoke-RestMethod -Uri "$baseUrl/Installation/" -Method Put -Headers $headers } catch {}
+
           # Write dataSettings.json
+          $json = '{"DataProvider":"sqlserver","ConnectionString":"${{ secrets.AZURE_SQL_CONNECTION_STRING }}","SQLCommandTimeout":""}'
           $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-          Invoke-RestMethod -Uri $kuduUrl -Method Put -Headers $headers -Body $bytes
-          Write-Host "dataSettings.json written successfully via Kudu API"
+          Invoke-RestMethod -Uri "$baseUrl/dataSettings.json" -Method Put -Headers $headers -Body $bytes
+          Write-Host "dataSettings.json written"
+
+          # Write installed.htm
+          $htm = "Installed"
+          $htmBytes = [System.Text.Encoding]::UTF8.GetBytes($htm)
+          Invoke-RestMethod -Uri "$baseUrl/Installation/installed.htm" -Method Put -Headers $headers -Body $htmBytes
+          Write-Host "installed.htm written"
+
+          Write-Host "All NopCommerce config files written successfully"
