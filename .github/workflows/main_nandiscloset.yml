@@ -21,6 +21,12 @@ jobs:
         run: dotnet build src/Presentation/Nop.Web/Nop.Web.csproj --configuration Release --no-restore
       - name: dotnet publish
         run: dotnet publish src/Presentation/Nop.Web/Nop.Web.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp" --no-build
+      - name: Create dataSettings.json
+        run: |
+          $json = '{"DataProvider":"sqlserver","ConnectionString":"${{ secrets.AZURE_SQL_CONNECTION_STRING }}","SQLCommandTimeout":""}'
+          New-Item -ItemType Directory -Force -Path "${{env.DOTNET_ROOT}}/myapp/App_Data"
+          Set-Content -Path "${{env.DOTNET_ROOT}}/myapp/App_Data/dataSettings.json" -Value $json -Encoding UTF8
+        shell: pwsh
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
@@ -51,20 +57,3 @@ jobs:
           app-name: 'NandisCloset'
           slot-name: 'Production'
           package: .
-      - name: Write dataSettings.json to App_Data
-        run: |
-          $json = '{"DataProvider":"sqlserver","ConnectionString":"${{ secrets.AZURE_SQL_CONNECTION_STRING }}","SQLCommandTimeout":""}'
-          az webapp deploy `
-            --resource-group NandisCloset_group `
-            --name NandisCloset `
-            --src-path $null `
-            --type static
-          New-Item -ItemType Directory -Force -Path "./App_Data"
-          Set-Content -Path "./App_Data/dataSettings.json" -Value $json
-          az webapp deploy `
-            --resource-group NandisCloset_group `
-            --name NandisCloset `
-            --src-path "./App_Data/dataSettings.json" `
-            --target-path "site/wwwroot/App_Data/dataSettings.json" `
-            --type static
-        shell: pwsh
