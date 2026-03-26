@@ -22,11 +22,19 @@ jobs:
       - name: dotnet publish
         run: dotnet publish src/Presentation/Nop.Web/Nop.Web.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp" --no-build
       - name: Create dataSettings.json
-        run: |
-          $json = '{"DataProvider":"sqlserver","ConnectionString":"${{ secrets.AZURE_SQL_CONNECTION_STRING }}","SQLCommandTimeout":""}'
-          New-Item -ItemType Directory -Force -Path "${{env.DOTNET_ROOT}}/myapp/App_Data"
-          Set-Content -Path "${{env.DOTNET_ROOT}}/myapp/App_Data/dataSettings.json" -Value $json -Encoding UTF8
         shell: pwsh
+        run: |
+          $appData = "${{env.DOTNET_ROOT}}/myapp/App_Data"
+          New-Item -ItemType Directory -Force -Path $appData
+          $json = @{
+            DataProvider = "sqlserver"
+            ConnectionString = "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
+            SQLCommandTimeout = ""
+          } | ConvertTo-Json -Compress
+          Set-Content -Path "$appData/dataSettings.json" -Value $json -Encoding UTF8
+          Write-Host "=== dataSettings.json contents ==="
+          Get-Content "$appData/dataSettings.json"
+          Write-Host "=================================="
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
