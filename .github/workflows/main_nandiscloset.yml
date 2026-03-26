@@ -65,3 +65,24 @@ jobs:
           app-name: 'NandisCloset'
           slot-name: 'Production'
           package: .
+      - name: Write dataSettings.json via Kudu API
+        shell: pwsh
+        run: |
+          $kuduUrl = "https://nandiscloset-exfcggcvhrewexcf.scm.southafricanorth-01.azurewebsites.net/api/vfs/site/wwwroot/App_Data/dataSettings.json"
+          $json = '{"DataProvider":"sqlserver","ConnectionString":"${{ secrets.AZURE_SQL_CONNECTION_STRING }}","SQLCommandTimeout":""}'
+          $token = az account get-access-token --resource "https://management.azure.com" --query accessToken -o tsv
+          $headers = @{
+            "Authorization" = "Bearer $token"
+            "Content-Type"  = "application/octet-stream"
+            "If-Match"      = "*"
+          }
+          # Ensure App_Data folder exists
+          try {
+            Invoke-RestMethod -Uri "https://nandiscloset-exfcggcvhrewexcf.scm.southafricanorth-01.azurewebsites.net/api/vfs/site/wwwroot/App_Data/" -Method Put -Headers $headers
+          } catch {
+            Write-Host "App_Data folder may already exist, continuing..."
+          }
+          # Write dataSettings.json
+          $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+          Invoke-RestMethod -Uri $kuduUrl -Method Put -Headers $headers -Body $bytes
+          Write-Host "dataSettings.json written successfully via Kudu API"
