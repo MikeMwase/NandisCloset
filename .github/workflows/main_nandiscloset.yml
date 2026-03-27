@@ -21,25 +21,28 @@ jobs:
         run: dotnet build src/Presentation/Nop.Web/Nop.Web.csproj --configuration Release --no-restore
       - name: dotnet publish
         run: dotnet publish src/Presentation/Nop.Web/Nop.Web.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp" --no-build
-      - name: Create dataSettings.json
+      - name: Create NopCommerce config files
         shell: pwsh
         run: |
           $appData = "${{env.DOTNET_ROOT}}/myapp/App_Data"
           New-Item -ItemType Directory -Force -Path $appData
           New-Item -ItemType Directory -Force -Path "$appData/Installation"
-          $json = @{
-            DataProvider = "sqlserver"
-            ConnectionString = "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
-            SQLCommandTimeout = ""
-          } | ConvertTo-Json -Compress
-          Set-Content -Path "$appData/dataSettings.json" -Value $json -Encoding UTF8
+
+          # Read existing appsettings.json and update connection string
+          $appSettingsPath = "$appData/appsettings.json"
+          $appSettings = Get-Content $appSettingsPath -Raw | ConvertFrom-Json
+          $appSettings.ConnectionStrings.ConnectionString = "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
+          $appSettings | ConvertTo-Json -Depth 10 | Set-Content $appSettingsPath -Encoding UTF8
+
+          # Write installed.htm
           Set-Content -Path "$appData/Installation/installed.htm" -Value "Installed" -Encoding UTF8
-          Write-Host "=== dataSettings.json contents ==="
-          Get-Content "$appData/dataSettings.json"
-          Write-Host "=================================="
-          Write-Host "=== installed.htm contents ==="
+
+          Write-Host "=== ConnectionString in appsettings.json ==="
+          Write-Host $appSettings.ConnectionStrings.ConnectionString
+          Write-Host "============================================"
+          Write-Host "=== installed.htm ==="
           Get-Content "$appData/Installation/installed.htm"
-          Write-Host "=============================="
+          Write-Host "===================="
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
@@ -81,19 +84,18 @@ jobs:
           }
           $baseUrl = "https://nandiscloset-exfcggcvhrewexcf.scm.southafricanorth-01.azurewebsites.net/api/vfs/site/wwwroot/App_Data"
 
-          # Create folders
-          try { Invoke-RestMethod -Uri "$baseUrl/" -Method Put -Headers $headers } catch {}
+          # Read deployed appsettings.json, update connection string, write back
+          $getHeaders = @{ "Authorization" = "Bearer $token" }
+          $appSettings = Invoke-RestMethod -Uri "$baseUrl/appsettings.json" -Method Get -Headers $getHeaders
+          $appSettings.ConnectionStrings.ConnectionString = "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
+          $updatedJson = $appSettings | ConvertTo-Json -Depth 10
+          $bytes = [System.Text.Encoding]::UTF8.GetBytes($updatedJson)
+          Invoke-RestMethod -Uri "$baseUrl/appsettings.json" -Method Put -Headers $headers -Body $bytes
+          Write-Host "appsettings.json updated with connection string"
+
+          # Ensure Installation folder and installed.htm exist
           try { Invoke-RestMethod -Uri "$baseUrl/Installation/" -Method Put -Headers $headers } catch {}
-
-          # Write dataSettings.json
-          $json = '{"DataProvider":"sqlserver","ConnectionString":"${{ secrets.AZURE_SQL_CONNECTION_STRING }}","SQLCommandTimeout":""}'
-          $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-          Invoke-RestMethod -Uri "$baseUrl/dataSettings.json" -Method Put -Headers $headers -Body $bytes
-          Write-Host "dataSettings.json written"
-
-          # Write installed.htm
-          $htm = "Installed"
-          $htmBytes = [System.Text.Encoding]::UTF8.GetBytes($htm)
+          $htmBytes = [System.Text.Encoding]::UTF8.GetBytes("Installed")
           Invoke-RestMethod -Uri "$baseUrl/Installation/installed.htm" -Method Put -Headers $headers -Body $htmBytes
           Write-Host "installed.htm written"
 
