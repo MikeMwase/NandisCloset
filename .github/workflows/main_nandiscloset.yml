@@ -21,34 +21,14 @@ jobs:
         run: dotnet build src/Presentation/Nop.Web/Nop.Web.csproj --configuration Release --no-restore
       - name: dotnet publish
         run: dotnet publish src/Presentation/Nop.Web/Nop.Web.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp" --no-build
-      - name: Create NopCommerce config files
+      - name: Create NopCommerce installation files
         shell: pwsh
         run: |
-          $myapp = "${{env.DOTNET_ROOT}}/myapp"
-          $appData = "$myapp/App_Data"
+          $appData = "${{env.DOTNET_ROOT}}/myapp/App_Data"
           New-Item -ItemType Directory -Force -Path $appData
           New-Item -ItemType Directory -Force -Path "$appData/Installation"
-
-          # appsettings.json lives in App_Data
-          $appSettingsPath = "$appData/appsettings.json"
-
-          if (Test-Path $appSettingsPath) {
-            $appSettings = Get-Content $appSettingsPath -Raw | ConvertFrom-Json
-            $appSettings.ConnectionStrings.ConnectionString = "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
-            $appSettings | ConvertTo-Json -Depth 10 | Set-Content $appSettingsPath -Encoding UTF8
-            Write-Host "appsettings.json updated successfully"
-            Write-Host "=== ConnectionString ==="
-            Write-Host $appSettings.ConnectionStrings.ConnectionString
-            Write-Host "========================"
-          } else {
-            Write-Host "appsettings.json not found in App_Data, listing contents:"
-            Get-ChildItem -Path $myapp -Recurse -Filter "appsettings.json" | Select-Object FullName
-            exit 1
-          }
-
-          # Write installed.htm
           Set-Content -Path "$appData/Installation/installed.htm" -Value "Installed" -Encoding UTF8
-          Write-Host "installed.htm written"
+          Write-Host "installed.htm written to artifact"
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
@@ -79,7 +59,7 @@ jobs:
           app-name: 'NandisCloset'
           slot-name: 'Production'
           package: .
-      - name: Write NopCommerce config files via Kudu API
+      - name: Update appsettings.json and write installed.htm via Kudu API
         shell: pwsh
         run: |
           $token = az account get-access-token --resource "https://management.azure.com" --query accessToken -o tsv
@@ -88,21 +68,28 @@ jobs:
             "Content-Type"  = "application/octet-stream"
             "If-Match"      = "*"
           }
+          $getHeaders = @{ "Authorization" = "Bearer $token" }
           $baseUrl = "https://nandiscloset-exfcggcvhrewexcf.scm.southafricanorth-01.azurewebsites.net/api/vfs/site/wwwroot/App_Data"
 
-          # Read deployed appsettings.json, update connection string, write back
-          $getHeaders = @{ "Authorization" = "Bearer $token" }
+          # Update connection string in appsettings.json
           $appSettings = Invoke-RestMethod -Uri "$baseUrl/appsettings.json" -Method Get -Headers $getHeaders
           $appSettings.ConnectionStrings.ConnectionString = "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
           $updatedJson = $appSettings | ConvertTo-Json -Depth 10
           $bytes = [System.Text.Encoding]::UTF8.GetBytes($updatedJson)
           Invoke-RestMethod -Uri "$baseUrl/appsettings.json" -Method Put -Headers $headers -Body $bytes
-          Write-Host "appsettings.json updated with connection string"
+          Write-Host "appsettings.json updated"
 
-          # Ensure Installation folder and installed.htm exist
+          # Write installed.htm
           try { Invoke-RestMethod -Uri "$baseUrl/Installation/" -Method Put -Headers $headers } catch {}
           $htmBytes = [System.Text.Encoding]::UTF8.GetBytes("Installed")
           Invoke-RestMethod -Uri "$baseUrl/Installation/installed.htm" -Method Put -Headers $headers -Body $htmBytes
           Write-Host "installed.htm written"
 
-          Write-Host "All NopCommerce config files written successfully"
+          # Verify
+          Write-Host "=== Verifying appsettings.json ==="
+          $verify = Invoke-RestMethod -Uri "$baseUrl/appsettings.json" -Method Get -Headers $getHeaders
+          Write-Host "DataProvider: $($verify.ConnectionStrings.DataProvider)"
+          Write-Host "ConnectionString starts with: $($verify.ConnectionStrings.ConnectionString.Substring(0,50))"
+          Write-Host "=================================="
+
+          Write-Host "All done!"
