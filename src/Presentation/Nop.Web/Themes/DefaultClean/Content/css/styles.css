@@ -1895,3 +1895,55 @@ label, label + * {
   width: 100%;
   float: none;
 }
+
+
+/* =========================================================
+   GLOBAL BUTTON OVERRIDES
+   Black buttons with gold hover across the site
+   ========================================================= */
+
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+.button-1,
+.button-2,
+.search-box .search-box-button,
+.newsletter-subscribe-button,
+.poll .buttons button,
+.contact-vendor .button-2,
+.eu-cookie-bar-notification button,
+.ui-dialog-content .back-in-stock-subscription-page .button-1 {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: none !important;
+  transition: all 0.3s ease;
+}
+
+  button:hover,
+  button:focus,
+  input[type="button"]:hover,
+  input[type="button"]:focus,
+  input[type="submit"]:hover,
+  input[type="submit"]:focus,
+  input[type="reset"]:hover,
+  input[type="reset"]:focus,
+  .button-1:hover,
+  .button-1:focus,
+  .button-2:hover,
+  .button-2:focus,
+  .search-box .search-box-button:hover,
+  .search-box .search-box-button:focus,
+  .newsletter-subscribe-button:hover,
+  .newsletter-subscribe-button:focus,
+  .poll .buttons button:hover,
+  .poll .buttons button:focus,
+  .contact-vendor .button-2:hover,
+  .contact-vendor .button-2:focus,
+  .eu-cookie-bar-notification button:hover,
+  .eu-cookie-bar-notification button:focus,
+  .ui-dialog-content .back-in-stock-subscription-page .button-1:hover,
+  .ui-dialog-content .back-in-stock-subscription-page .button-1:focus {
+    background-color: #C19A6B !important;
+    color: #000000 !important;
+  }
