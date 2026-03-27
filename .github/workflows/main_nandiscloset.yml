@@ -24,25 +24,31 @@ jobs:
       - name: Create NopCommerce config files
         shell: pwsh
         run: |
-          $appData = "${{env.DOTNET_ROOT}}/myapp/App_Data"
+          $myapp = "${{env.DOTNET_ROOT}}/myapp"
+          $appData = "$myapp/App_Data"
           New-Item -ItemType Directory -Force -Path $appData
           New-Item -ItemType Directory -Force -Path "$appData/Installation"
 
-          # Read existing appsettings.json and update connection string
+          # appsettings.json lives in App_Data
           $appSettingsPath = "$appData/appsettings.json"
-          $appSettings = Get-Content $appSettingsPath -Raw | ConvertFrom-Json
-          $appSettings.ConnectionStrings.ConnectionString = "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
-          $appSettings | ConvertTo-Json -Depth 10 | Set-Content $appSettingsPath -Encoding UTF8
+
+          if (Test-Path $appSettingsPath) {
+            $appSettings = Get-Content $appSettingsPath -Raw | ConvertFrom-Json
+            $appSettings.ConnectionStrings.ConnectionString = "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
+            $appSettings | ConvertTo-Json -Depth 10 | Set-Content $appSettingsPath -Encoding UTF8
+            Write-Host "appsettings.json updated successfully"
+            Write-Host "=== ConnectionString ==="
+            Write-Host $appSettings.ConnectionStrings.ConnectionString
+            Write-Host "========================"
+          } else {
+            Write-Host "appsettings.json not found in App_Data, listing contents:"
+            Get-ChildItem -Path $myapp -Recurse -Filter "appsettings.json" | Select-Object FullName
+            exit 1
+          }
 
           # Write installed.htm
           Set-Content -Path "$appData/Installation/installed.htm" -Value "Installed" -Encoding UTF8
-
-          Write-Host "=== ConnectionString in appsettings.json ==="
-          Write-Host $appSettings.ConnectionStrings.ConnectionString
-          Write-Host "============================================"
-          Write-Host "=== installed.htm ==="
-          Get-Content "$appData/Installation/installed.htm"
-          Write-Host "===================="
+          Write-Host "installed.htm written"
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
