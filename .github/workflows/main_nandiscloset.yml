@@ -21,14 +21,26 @@ jobs:
         run: dotnet build src/Presentation/Nop.Web/Nop.Web.csproj --configuration Release --no-restore
       - name: dotnet publish
         run: dotnet publish src/Presentation/Nop.Web/Nop.Web.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp" --no-build
+      - name: Copy App_Data to publish output
+        shell: pwsh
+        run: |
+          $src = "src/Presentation/Nop.Web/App_Data"
+          $dest = "${{env.DOTNET_ROOT}}/myapp/App_Data"
+          Write-Host "=== Source App_Data contents ==="
+          Get-ChildItem $src -Recurse | Select-Object FullName
+          Write-Host "================================"
+          New-Item -ItemType Directory -Force -Path $dest
+          Copy-Item -Path "$src/*" -Destination $dest -Recurse -Force
+          Write-Host "=== Destination App_Data contents after copy ==="
+          Get-ChildItem $dest -Recurse | Select-Object FullName
+          Write-Host "==============================================="
       - name: Create NopCommerce installation files
         shell: pwsh
         run: |
           $appData = "${{env.DOTNET_ROOT}}/myapp/App_Data"
-          New-Item -ItemType Directory -Force -Path $appData
           New-Item -ItemType Directory -Force -Path "$appData/Installation"
           Set-Content -Path "$appData/Installation/installed.htm" -Value "Installed" -Encoding UTF8
-          Write-Host "installed.htm written to artifact"
+          Write-Host "installed.htm written"
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
