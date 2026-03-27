@@ -71,37 +71,3 @@ jobs:
           app-name: 'NandisCloset'
           slot-name: 'Production'
           package: .
-      - name: Update appsettings.json and write installed.htm via Kudu API
-        shell: pwsh
-        run: |
-          $token = az account get-access-token --resource "https://management.azure.com" --query accessToken -o tsv
-          $headers = @{
-            "Authorization" = "Bearer $token"
-            "Content-Type"  = "application/octet-stream"
-            "If-Match"      = "*"
-          }
-          $getHeaders = @{ "Authorization" = "Bearer $token" }
-          $baseUrl = "https://nandiscloset-exfcggcvhrewexcf.scm.southafricanorth-01.azurewebsites.net/api/vfs/site/wwwroot/App_Data"
-
-          # Update connection string in appsettings.json
-          $appSettings = Invoke-RestMethod -Uri "$baseUrl/appsettings.json" -Method Get -Headers $getHeaders
-          $appSettings.ConnectionStrings.ConnectionString = "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
-          $updatedJson = $appSettings | ConvertTo-Json -Depth 10
-          $bytes = [System.Text.Encoding]::UTF8.GetBytes($updatedJson)
-          Invoke-RestMethod -Uri "$baseUrl/appsettings.json" -Method Put -Headers $headers -Body $bytes
-          Write-Host "appsettings.json updated"
-
-          # Write installed.htm
-          try { Invoke-RestMethod -Uri "$baseUrl/Installation/" -Method Put -Headers $headers } catch {}
-          $htmBytes = [System.Text.Encoding]::UTF8.GetBytes("Installed")
-          Invoke-RestMethod -Uri "$baseUrl/Installation/installed.htm" -Method Put -Headers $headers -Body $htmBytes
-          Write-Host "installed.htm written"
-
-          # Verify
-          Write-Host "=== Verifying appsettings.json ==="
-          $verify = Invoke-RestMethod -Uri "$baseUrl/appsettings.json" -Method Get -Headers $getHeaders
-          Write-Host "DataProvider: $($verify.ConnectionStrings.DataProvider)"
-          Write-Host "ConnectionString starts with: $($verify.ConnectionStrings.ConnectionString.Substring(0,50))"
-          Write-Host "=================================="
-
-          Write-Host "All done!"
