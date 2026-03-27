@@ -1,7 +1,7 @@
 /*********** CSS RESET **********/
 :root {
-  --accent-blue-color: #4ab2f1;
-  --accent-blue-active-color: #248ece;
+  --accent-blue-color: #000000;
+  --accent-blue-active-color: #d4af37;
   --gray-color: #6B6B6B;
   --dark-gray-color: #444;
   --error-red-color: #d51f28;
@@ -3378,7 +3378,7 @@ label, label + * {
   }
 
     .wishlist-content .tax-shipping-info a {
-      color: #4ab3f1;
+      color: #000000;
     }
 
       .wishlist-content .tax-shipping-info a:hover,
@@ -4453,7 +4453,7 @@ label, label + * {
 }
 
 .shopping-cart-page .checkout-attributes a {
-  color: #4ab3f1;
+  color: #000000;
 }
 
   .shopping-cart-page .checkout-attributes a:hover,
@@ -4467,7 +4467,7 @@ label, label + * {
 }
 
   .shopping-cart-page .tax-shipping-info a {
-    color: #4ab3f1;
+    color: #000000;
   }
 
     .shopping-cart-page .tax-shipping-info a:hover,
